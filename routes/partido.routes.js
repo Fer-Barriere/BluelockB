@@ -240,7 +240,7 @@ async function actualizarEstadisticas(jugadorId, partido) {
   await jugador.save();
 }
 
-router.post("/generar", async (req, res) => {
+router.post("/generar",authMiddleware, async (req, res) => {
   const { ids } = req.body;
   try {
     const jugadores = await Jugador.find({ _id: { $in: ids } });
@@ -276,7 +276,7 @@ router.post("/generar", async (req, res) => {
   }
 });
 // Ruta para eliminar un partido por su ID
-router.delete("/eliminarPartido/:id", async (req, res) => {
+router.delete("/eliminarPartido/:id", authMiddleware,  async (req, res) => {
   try {
     const partidoId = req.params.id;
     const verificar = await Partido.findById(partidoId);
@@ -301,7 +301,7 @@ router.delete("/eliminarPartido/:id", async (req, res) => {
   }
 });
 
-router.put("/actualizar-partido/:id", async (req, res) => {
+router.put("/actualizar-partido/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { marcador, highlights, estado } = req.body;
@@ -340,7 +340,7 @@ router.put("/actualizar-partido/:id", async (req, res) => {
   }
 });
 
-router.get("/listar-partidos", async (req, res) => {
+router.get("/listar-partidos", authMiddleware, async (req, res) => {
   try {
     const partidos = await Partido.find()
       .sort({ fecha: -1 })
@@ -358,7 +358,7 @@ router.get("/listar-partidos", async (req, res) => {
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const partido = await Partido.findById(id).populate(

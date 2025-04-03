@@ -9,22 +9,46 @@ router.get("/", authMiddleware, async (req, res) => {
     res.json(jugadores);
 });
 // Obtener todos los Maximos
-router.get("/Maximos", authMiddleware, async (req, res) => {
+router.get("/maximos", authMiddleware, async (req, res) => {
     try {
-        const maxGoleador = await Jugador.findOne().sort({ "estadisticas.goles": -1 }).select("nombre apodo _id estadisticas.goles");
-        const maxAsistente = await Jugador.findOne().sort({ "estadisticas.asistencias": -1 }).select("nombre apodo _id estadisticas.asistencias");
-        const maxAtajadas = await Jugador.findOne().sort({ "estadisticas.atajadas": -1 }).select("nombre apodo _id estadisticas.atajadas");
+        const maximos = await Jugador.aggregate([
+            {
+                $project: {
+                    apodo: 1,
+                    _id: 1,
+                    "estadisticas.goles": 1,
+                    "estadisticas.asistencias": 1,
+                    "estadisticas.atajadas": 1
+                }
+            },
+            {
+                $facet: {
+                    maxGoleador: [{ $sort: { "estadisticas.goles": -1 } }, { $limit: 1 }],
+                    maxAsistente: [{ $sort: { "estadisticas.asistencias": -1 } }, { $limit: 1 }],
+                    maxAtajadas: [{ $sort: { "estadisticas.atajadas": -1 } }, { $limit: 1 }]
+                }
+            }
+        ]);
 
-        res.json({
-            maxGoleador: maxGoleador ? { nombre: maxGoleador.apodo, goles: maxGoleador.estadisticas.goles, imagen: `assets/${maxGoleador._id}.png` } : null,
-            maxAsistente: maxAsistente ? { nombre: maxAsistente.apodo, asistencias: maxAsistente.estadisticas.asistencias, imagen: `assets/${maxAsistente._id}.png` } : null,
-            maxAtajadas: maxAtajadas ? { nombre: maxAtajadas.apodo, atajadas: maxAtajadas.estadisticas.atajadas, imagen: `assets/${maxAtajadas._id}.png` } : null
-        });
+        // Extraer los resultados
+        const maxGoleador = maximos[0].maxGoleador[0] || null;
+        const maxAsistente = maximos[0].maxAsistente[0] || null;
+        const maxAtajadas = maximos[0].maxAtajadas[0] || null;
+
+        // Crear array con los máximos en el formato requerido
+        const response = [
+            maxGoleador ? { title: "Maximo Goleador",image: `assets/${maxGoleador._id}.png`, player: maxGoleador.apodo, stat: maxGoleador.estadisticas.goles } : null,
+            maxAsistente ? { title: "Maximo Asistidor", image: `assets/${maxAsistente._id}.png`, player: maxAsistente.apodo, stat: maxAsistente.estadisticas.asistencias } : null,
+            maxAtajadas ? { title: "Maximo Atajador", image: `assets/${maxAtajadas._id}.png`, player: maxAtajadas.apodo, stat: maxAtajadas.estadisticas.atajadas } : null
+        ].filter(Boolean); // Elimina los valores null si no hay jugadores
+
+        res.json(response);
 
     } catch (error) {
         res.status(500).json({ message: "Error al obtener máximos", error });
     }
 });
+
 // Obtener jugador por ID
 router.get("/:id", authMiddleware, async (req, res) => {
     try {
