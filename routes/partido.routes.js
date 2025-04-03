@@ -231,6 +231,14 @@ async function actualizarEstadisticas(jugadorId, partido) {
     stats.atajadas += registroHighlight.atajadas;
   }
 
+  if (stats.partidosJugados > 0){
+    let aux = (stats.partidosGanados/stats.partidosJugados)
+    stats.porcentajeVictoria = Math.round(aux * 100);
+    console.log(stats.porcentajeVictoria)
+  } else {
+    stats.porcentajeVictoria = 0
+  }
+
   // Actualizar promedio de media
   stats.promedioMedia =
     (stats.promedioMedia * (stats.partidosJugados - 1) + jugador.media) /
