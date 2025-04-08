@@ -202,21 +202,43 @@ function balancearEquipos(equipoBlanco, equipoNegro, jugadores) {
 function calcularMedia(equipo) {
   return equipo.reduce((sum, j) => sum + j.media, 0) / equipo.length;
 }
+
 async function actualizarEstadisticas(jugadorId, partido) {
   const jugador = await Jugador.findById(jugadorId);
   if (!jugador) return;
-
-  // Extraer datos actuales
+  
+// Extraer datos actuales
   const stats = jugador.estadisticas;
+
+  // Verificar si el jugador participó como titular o suplente
+  const esJugadorEnBlanco =
+    partido.equipoBlanco.jugadores.some((j) => j.jugador.equals(jugadorId)) ||
+    partido.suplentes.some(
+      (s) => s.jugador.equals(jugadorId) && s.equipo === "Blanco"
+    );
+
+  const esJugadorEnNegro =
+    partido.equipoNegro.jugadores.some((j) => j.jugador.equals(jugadorId)) ||
+    partido.suplentes.some(
+      (s) => s.jugador.equals(jugadorId) && s.equipo === "Negro"
+    );
+
+  const participo = esJugadorEnBlanco || esJugadorEnNegro;
+
+  // Solo actualizar si participó
+  if (!participo) return;
+
+  // Sumar partido jugado
   stats.partidosJugados += 1;
 
-  // Determinar si el jugador ganó
-  if (
-    (partido.equipoBlanco.jugadores.some((j) => j.jugador.equals(jugadorId)) &&
+  // Verificar victoria
+  const gano =
+    (esJugadorEnBlanco &&
       partido.marcador.equipoBlanco > partido.marcador.equipoNegro) ||
-    (partido.equipoNegro.jugadores.some((j) => j.jugador.equals(jugadorId)) &&
-      partido.marcador.equipoNegro > partido.marcador.equipoBlanco)
-  ) {
+    (esJugadorEnNegro &&
+      partido.marcador.equipoNegro > partido.marcador.equipoBlanco);
+
+  if (gano) {
     stats.partidosGanados += 1;
   }
 
@@ -231,12 +253,12 @@ async function actualizarEstadisticas(jugadorId, partido) {
     stats.atajadas += registroHighlight.atajadas;
   }
 
-  if (stats.partidosJugados > 0){
-    let aux = (stats.partidosGanados/stats.partidosJugados)
+  // Calcular porcentaje de victoria
+  if (stats.partidosJugados > 0) {
+    const aux = stats.partidosGanados / stats.partidosJugados;
     stats.porcentajeVictoria = Math.round(aux * 100);
-    console.log(stats.porcentajeVictoria)
   } else {
-    stats.porcentajeVictoria = 0
+    stats.porcentajeVictoria = 0;
   }
 
   // Actualizar promedio de media
@@ -324,11 +346,11 @@ router.put("/actualizar-partido/:id", authMiddleware, async (req, res) => {
       { marcador, highlights, estado },
       { new: true }
     );
-
     if (partidoActualizado.estado === "Cerrado") {
       const jugadoresIds = [
         ...partidoActualizado.equipoBlanco.jugadores.map((j) => j.jugador),
         ...partidoActualizado.equipoNegro.jugadores.map((j) => j.jugador),
+        ...partidoActualizado.suplentes.map((s) => s.jugador), 
       ];
       for (const jugadorId of jugadoresIds) {
         await actualizarEstadisticas(jugadorId, partidoActualizado);
@@ -365,7 +387,28 @@ router.get("/listar-partidos", authMiddleware, async (req, res) => {
     res.status(500).json({ error: "Error al obtener los partidos." });
   }
 });
+router.get("/ultimo-partido", authMiddleware, async (req, res) => {
+  try {
+    const partido = await Partido.findOne({ estado: "Cerrado" })
+      .sort({ fecha: -1 })
+      .populate(
+        "equipoBlanco.jugadores.jugador equipoNegro.jugadores.jugador suplentes.jugador highlights.jugador"
+      );
 
+    if (!partido) {
+      return res.status(404).json({ mensaje: "No se encontró un partido cerrado" });
+    }
+
+    const partidoConId = {
+      ...partido.toObject(),
+      id: partido._id.toString(),
+    };
+
+    res.json(partidoConId);
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Error al obtener el último partido cerrado" });
+  }
+});
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
