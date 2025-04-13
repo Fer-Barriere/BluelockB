@@ -370,6 +370,29 @@ router.put("/actualizar-partido/:id", authMiddleware, async (req, res) => {
   }
 });
 
+router.put("/actualizar-alineacion/:id", authMiddleware, async (req, res) => {
+  try {
+    const partidoId = req.params.id;
+    const { equipoBlanco, equipoNegro, suplentes } = req.body;
+
+    const partidoActualizado = await Partido.findByIdAndUpdate(
+      partidoId,
+      { equipoBlanco, equipoNegro, suplentes},
+      { new: true }
+    );
+
+    if (!partidoActualizado) {
+      return res.status(404).json({ error: 'Partido no encontrado' });
+    }
+
+    res.json(partidoActualizado);
+  } catch (error) {
+    console.error('Error al actualizar partido:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
+
 router.get("/listar-partidos", authMiddleware, async (req, res) => {
   try {
     const partidos = await Partido.find()
