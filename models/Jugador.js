@@ -24,6 +24,7 @@ const jugadorSchema = new mongoose.Schema(
       atajadas: { type: Number, default: 0 },
       porcentajeVictoria: { type: Number, default: 0},
     },
+    estadoPagos: {type: Boolean,default: false},
   },
   {
     timestamps: true,
