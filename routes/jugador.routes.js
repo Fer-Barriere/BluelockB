@@ -74,7 +74,7 @@ router.get("/maximos", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Error al obtener máximos", error });
   }
 });
-router.get("/leaderboard", async (req, res) => {
+router.get("/leaderboard",authMiddleware, async (req, res) => {
   try {
     const top = 3;
 
@@ -124,7 +124,7 @@ router.get("/leaderboard", async (req, res) => {
   }
 });
 // Actualizar múltiples jugadores
-router.put("/actualizarPagos", async (req, res) => {
+router.put("/actualizarPagos",authMiddleware, async (req, res) => {
   try {
     const { jugadores } = req.body;
     if (!Array.isArray(jugadores) || jugadores.length === 0) {
@@ -165,7 +165,7 @@ router.get("/:id", authMiddleware, async (req, res) => {
   }
 });
 
-router.post("/por-ids", async (req, res) => {
+router.post("/por-ids",authMiddleware, async (req, res) => {
   try {
     const { ids } = req.body; // Recibir un array de IDs
     if (!ids || !Array.isArray(ids) || ids.length === 0) {
