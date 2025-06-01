@@ -13,6 +13,11 @@ router.get("/maximos", authMiddleware, async (req, res) => {
   try {
     const maximos = await Jugador.aggregate([
       {
+        $match: {
+          estadoPagos: true,
+        }
+      },
+      {
         $project: {
           apodo: 1,
           _id: 1,
