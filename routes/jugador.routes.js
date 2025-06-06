@@ -128,6 +128,145 @@ router.get("/leaderboard",authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Error al obtener máximos", error });
   }
 });
+router.get('/leaderboardMedia', authMiddleware, async (req, res) => {
+    try {
+        const topCategorias = await Jugador.aggregate([
+            { $match: { estadoPagos: true } },
+            {
+                $facet: {
+                    topGoleador: [
+                        { $sort: { "estadisticas.goles": -1 } },
+                        { $limit: 1 },
+                        { $project: { _id: 1 } }
+                    ],
+                    topAsistidor: [
+                        { $sort: { "estadisticas.asistencias": -1 } },
+                        { $limit: 1 },
+                        { $project: { _id: 1 } }
+                    ],
+                    topAtajador: [
+                        { $sort: { "estadisticas.atajadas": -1 } },
+                        { $limit: 1 },
+                        { $project: { _id: 1 } }
+                    ]
+                }
+            }
+        ]);
+
+        const topGoleadorId = topCategorias[0]?.topGoleador[0]?._id;
+        const topAsistidorId = topCategorias[0]?.topAsistidor[0]?._id;
+        const topAtajadorId = topCategorias[0]?.topAtajador[0]?._id;
+
+        const jugadores = await Jugador.find({
+            estadoPagos: true,
+            media: { $lte: 75 },
+            _id: {
+                $nin: [topGoleadorId, topAsistidorId, topAtajadorId].filter(Boolean)
+            }
+        }, {
+            apodo: 1,
+            media: 1
+        }).sort({ media: -1 });
+
+        res.json(jugadores);
+    } catch (error) {
+        res.status(500).json({ message: "Error al obtener jugadores", error });
+    }
+});
+router.get("/leaderboardMedia75",authMiddleware,  async (req, res) => {
+  try {
+    const top = 3;
+
+    
+    const Maximos = await Jugador.aggregate([
+      {
+        $match: {
+          estadoPagos: true,
+          "estadisticas.partidosJugados": { $gt: 0 }
+        }
+      },
+      {
+        $facet: {
+          goleador: [
+            { $match: { "estadisticas.goles": { $gt: 0 } } },
+            { $sort: { "estadisticas.goles": -1 } },
+            { $limit: 3 }
+          ],
+          asistidor: [
+            { $match: { "estadisticas.asistencias": { $gt: 0 } } },
+            { $sort: { "estadisticas.asistencias": -1 } },
+            { $limit: 3 }
+          ],
+          atajador: [
+            { $match: { "estadisticas.atajadas": { $gt: 0 } } },
+            { $sort: { "estadisticas.atajadas": -1 } },
+            { $limit: 3 }
+          ]
+        }
+      }
+    ]);
+
+
+    // Unir los jugadores top de cada categoría en un solo array
+    const iDsMaximos = [
+      ...Maximos[0].goleador,
+      ...Maximos[0].asistidor,
+      ...Maximos[0].atajador
+    ].filter(Boolean);
+
+    // Obtener IDs únicos para excluir
+    const topIds = [...new Set(iDsMaximos.map(p => p._id))];
+
+    // Buscar top 3 jugadores con media <= 75 que no sean parte del top principal
+    const maximos = await Jugador.aggregate([
+      {
+        $match: {
+          estadoPagos: true,
+          media: { $lte: 75 },
+          "estadisticas.partidosJugados": { $gt: 0 },
+          _id: { $nin: topIds }
+        }
+      },
+      {
+        $facet: {
+          goleadores: [
+            { $match: { "estadisticas.goles": { $gt: 0 } } },
+            { $sort: { "estadisticas.goles": -1 } },
+            { $limit: top }
+          ],
+          asistidores: [
+            { $match: { "estadisticas.asistencias": { $gt: 0 } } },
+            { $sort: { "estadisticas.asistencias": -1 } },
+            { $limit: top }
+          ],
+          atajadores: [
+            { $match: { "estadisticas.atajadas": { $gt: 0 } } },
+            { $sort: { "estadisticas.atajadas": -1 } },
+            { $limit: top }
+          ]
+        }
+      }
+    ]);
+
+    const { goleadores, asistidores, atajadores } = maximos[0];
+
+    const formatJugador = (jugador, statKey) => ({
+      player: jugador.apodo,
+      stat: jugador.estadisticas[statKey]
+    });
+
+    res.json({
+      goleadores: goleadores.map((j) => formatJugador(j, "goles")),
+      asistidores: asistidores.map((j) => formatJugador(j, "asistencias")),
+      atajadores: atajadores.map((j) => formatJugador(j, "atajadas"))
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener máximos de media baja", error });
+  }
+});
+
+
 // Actualizar múltiples jugadores
 router.put("/actualizarPagos",authMiddleware, async (req, res) => {
   try {
